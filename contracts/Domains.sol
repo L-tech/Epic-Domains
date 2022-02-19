@@ -12,6 +12,8 @@ import "hardhat/console.sol";
 
 contract Domains is ERC721URIStorage {
 
+    address payable public owner;
+
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -25,8 +27,18 @@ contract Domains is ERC721URIStorage {
 
 
     constructor(string memory _tld) payable ERC721("Meme Name Service", "MNS") {
+        owner = payable(msg.sender);
         tld = _tld;
         console.log("%s name service deployed", _tld);
+    }
+
+    modifier onlyOwner() {
+        require(isOwner());
+        _;
+    }
+
+    function isOwner() public view returns (bool) {
+        return msg.sender == owner;
     }
 
     function price(string calldata _name) public pure returns(uint) {
@@ -93,8 +105,14 @@ contract Domains is ERC721URIStorage {
         records[_name] = _record;
     }
 
-    // This will give us the domain owners' address
+    // This will return the domain owners' address
     function getAddress(string calldata _name) public view returns (address) {
         return domains[_name];
     }
+
+    function withdraw() public onlyOwner {
+	    uint amount = address(this).balance;
+	    (bool success, ) = msg.sender.call{value: amount}("");
+	    require(success, "Failed to withdraw Matic");
+    } 
 }
