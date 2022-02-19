@@ -24,6 +24,7 @@ contract Domains is ERC721URIStorage {
 
     mapping(string => address) public domains;
     mapping(string => string) public records;
+    mapping (uint => string) public names;
 
 
     constructor(string memory _tld) payable ERC721("Meme Name Service", "MNS") {
@@ -56,7 +57,8 @@ contract Domains is ERC721URIStorage {
     // A register function that adds their names to the domains mapping
     function registerName(string calldata _name) public payable {
         // Check if the name is already registered
-        require(domains[_name] == address(0), "Domain Name already registered");
+        if (domains[_name] != address(0)) revert AlreadyRegistered();
+        if (!valid(_name)) revert InvalidName(_name);
 
         uint _price = price(_name);
 		// Check if enough Matic was paid in the transaction
@@ -97,11 +99,12 @@ contract Domains is ERC721URIStorage {
         _setTokenURI(newRecordId, finalTokenUri);
         
         domains[_name] = msg.sender;
+        names[newRecordId] = _name;
         _tokenIds.increment();
     }
 
     function setRecord(string calldata _name, string calldata _record) public {
-        require(domains[_name] == msg.sender, "You are not the owner of this domain!");
+        if (msg.sender != domains[_name]) revert Unauthorized();
         records[_name] = _record;
     }
 
@@ -115,4 +118,23 @@ contract Domains is ERC721URIStorage {
 	    (bool success, ) = msg.sender.call{value: amount}("");
 	    require(success, "Failed to withdraw Matic");
     } 
+
+    function getAllNames() public view returns (string[] memory) {
+        console.log("Getting all names from contract");
+        string[] memory allNames = new string[](_tokenIds.current());
+        for (uint i = 0; i < _tokenIds.current(); i++) {
+            allNames[i] = names[i];
+            console.log("Name for token %d is %s", i, allNames[i]);
+        }
+
+        return allNames;
+    }
+
+    function valid(string calldata _name) public pure returns(bool) {
+        return StringUtils.strlen(_name) >= 3 && StringUtils.strlen(_name) <= 10;
+    }
+
+    error Unauthorized();
+    error AlreadyRegistered();
+    error InvalidName(string name);
 }
